@@ -71,7 +71,11 @@
 - Retrieve all accounts (Personal, TFSA, RRSP, etc.)
 - Account balances and buying power
 - Current positions with unrealized P/L
-  - Activity feed and order history
+- Activity feed and order history
+- **Daily historical portfolio financials** with automatic pagination
+  - Net liquidation value over any date range
+  - Net deposits vs. unrealised gain/loss
+  - Simple return % calculations
 
 ### 📈 Stock Trading
 
@@ -1125,6 +1129,36 @@ async def watch_orders():
 asyncio.run(watch_orders())
 ```
 
+### Example 7: Historical Portfolio Chart
+
+```python
+from datetime import date, timedelta
+from wealthsimple_v2 import WealthsimpleV2
+
+ws = WealthsimpleV2()
+
+# Fetch one year of daily data
+start_date = (date.today() - timedelta(days=365)).isoformat()
+result = ws.get_identity_historical_financials(
+    start_date=start_date,
+    currency="CAD",
+    include_simple_returns=True,
+)
+
+edges = result.get("edges", [])
+print(f"Retrieved {len(edges)} daily records")
+
+for edge in edges:
+    node = edge["node"]
+    date = node["date"]
+    value = float(node["netLiquidationValueV2"]["amount"])
+    deposits = float(node["netDepositsV2"]["amount"])
+    ret = node.get("simpleReturns", {})
+    print(rate)
+    rate = float(ret.get("rate", 0))
+    print(f"{date}: value=${value:,.2f}  deposits=${deposits:,.2f}  return={rate:.2f}%")
+```
+
 ---
 
 ## 🔧 Advanced Usage
@@ -1227,13 +1261,14 @@ ws = WealthsimpleV2(
 
 #### Account Methods
 
-| Method                                                                   | Description                   |
-| ------------------------------------------------------------------------ | ----------------------------- |
-| `get_accounts(identity_id=None)`                                         | Get all accounts              |
-| `get_account_financials(account_ids, currency='CAD')`                    | Get account balances          |
-| `get_positions(identity_id=None, account_ids=None, security_types=None)` | Get current positions         |
-| `get_activities(account_ids=None, types=None, limit=50)`                 | Get activity feed             |
-| `get_identity(identity_id=None)`                                         | Get user identity information |
+| Method                                                                                                                                                      | Description                               |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------- |
+| `get_accounts(identity_id=None)`                                                                                                                            | Get all accounts                          |
+| `get_account_financials(account_ids, currency='CAD')`                                                                                                       | Get account balances                      |
+| `get_positions(identity_id=None, account_ids=None, security_types=None)`                                                                                    | Get current positions                     |
+| `get_activities(account_ids=None, types=None, limit=50)`                                                                                                    | Get activity feed                         |
+| `get_identity(identity_id=None)`                                                                                                                            | Get user identity information             |
+| `get_identity_historical_financials(identity_id=None, currency='CAD', start_date=None, end_date=None, account_ids=None, include_simple_returns=False, ...)` | Get daily historical portfolio financials |
 
 #### Stock Trading Methods
 

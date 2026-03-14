@@ -1265,6 +1265,129 @@ class WealthsimpleV2:
         result = self.graphql_query("FetchAccountFinancials", gql_query, variables)
         return result.get('data', {}).get('accounts', [])
     
+    def get_identity_historical_financials(self, identity_id: Optional[str] = None, currency: str = 'CAD',
+                                           start_date: Optional[str] = None, end_date: Optional[str] = None,
+                                           account_ids: Optional[List[str]] = None,
+                                           account_scope: str = 'OWN',
+                                           include_simple_returns: bool = False,
+                                           first: Optional[int] = None, cursor: Optional[str] = None) -> Dict:
+        """
+        Get daily historical financial data for an identity (portfolio value over time).
+
+        Args:
+            identity_id: Identity ID (uses authenticated user's ID if not provided)
+            currency: Currency for the financials (default: 'CAD')
+            start_date: Start date for historical data (YYYY-MM-DD)
+            end_date: Optional end date for historical data (YYYY-MM-DD)
+            account_ids: Optional list of account IDs to filter by
+            account_scope: Account scope filter (default: 'OWN')
+            include_simple_returns: Whether to include simple return calculations
+            first: Maximum number of records to return
+            cursor: Pagination cursor
+
+        Returns:
+            Dict with 'edges' (list of daily financials) and 'pageInfo'
+        """
+        if not identity_id:
+            identity_id = self.identity_id
+
+        if not identity_id:
+            self._fetch_identity_id_from_token()
+            identity_id = self.identity_id
+
+        if not identity_id:
+            raise Exception("No identity ID available. Please authenticate first.")
+
+        gql_query = """
+        query FetchIdentityHistoricalFinancials($identityId: ID!, $currency: Currency!, $startDate: Date, $endDate: Date, $first: Int, $cursor: String, $accountIds: [ID!], $includeSimpleReturns: Boolean = false, $accountScope: AccountScope = OWN) {
+          identity(id: $identityId) {
+            id
+            financials(filter: {accounts: $accountIds}, accountScope: $accountScope) {
+              historicalDaily(
+                currency: $currency
+                startDate: $startDate
+                endDate: $endDate
+                first: $first
+                after: $cursor
+              ) {
+                edges {
+                  node {
+                    ...IdentityHistoricalFinancials
+                    __typename
+                  }
+                  __typename
+                }
+                pageInfo {
+                  hasNextPage
+                  endCursor
+                  __typename
+                }
+                __typename
+              }
+              __typename
+            }
+            __typename
+          }
+        }
+
+        fragment IdentityHistoricalFinancials on IdentityHistoricalDailyFinancials {
+          date
+          netLiquidationValueV2 {
+            amount
+            currency
+            __typename
+          }
+          netDepositsV2 {
+            amount
+            currency
+            __typename
+          }
+          simpleReturns(referenceDate: $startDate) @include(if: $includeSimpleReturns) {
+            ...SimpleReturns
+            __typename
+          }
+          __typename
+        }
+
+        fragment SimpleReturns on SimpleReturns {
+          amount {
+            ...Money
+            __typename
+          }
+          asOf
+          rate
+          referenceDate
+          __typename
+        }
+
+        fragment Money on Money {
+          amount
+          cents
+          currency
+          __typename
+        }
+        """
+
+        variables = {
+            "identityId": identity_id,
+            "currency": currency,
+            "includeSimpleReturns": include_simple_returns,
+            "accountScope": account_scope,
+        }
+        if start_date is not None:
+            variables["startDate"] = start_date
+        if end_date is not None:
+            variables["endDate"] = end_date
+        if account_ids is not None:
+            variables["accountIds"] = account_ids
+        if first is not None:
+            variables["first"] = first
+        if cursor is not None:
+            variables["cursor"] = cursor
+
+        result = self.graphql_query("FetchIdentityHistoricalFinancials", gql_query, variables)
+        return result.get('data', {}).get('identity', {}).get('financials', {}).get('historicalDaily', {})
+
     def get_positions(self, identity_id: Optional[str] = None, account_ids: Optional[List[str]] = None,
                      currency: Optional[str] = None, security_type: Optional[str] = None,
                      include_security: bool = True, first: int = 500, aggregated: bool = False) -> List[Dict]:
