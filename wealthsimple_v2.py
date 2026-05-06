@@ -595,6 +595,63 @@ class WealthsimpleV2:
         
         result = self.graphql_query("FetchSecuritySearchResult", gql_query, variables)
         return result.get('data', {}).get('securitySearch', {}).get('results', [])
+
+    def get_markets_metadata(self) -> List[Dict]:
+        """
+        Get metadata for all supported markets (NASDAQ, NYSE, TSX, etc.).
+        
+        Returns:
+            List of market metadata dictionaries
+        """
+        gql_query = """
+        query FetchMarketsMetadata {
+          marketsMetadata {
+            cacheDate
+            close
+            date
+            exchangeName
+            lastOpenDate
+            lastOpenTime
+            mic
+            nextOpenDate
+            nextOpenTime
+            open
+            __typename
+          }
+        }
+        """
+        
+        result = self.graphql_query("FetchMarketsMetadata", gql_query, {})
+        return result.get('data', {}).get('marketsMetadata', [])
+
+    def get_market_buffer(self, country: str = 'CA', is_option: bool = False) -> float:
+        """
+        Get the market buffer multiplier for a country/asset type.
+        
+        Args:
+            country: Two-letter country code ('CA' or 'US')
+            is_option: Whether the buffer is for an option
+            
+        Returns:
+            Market buffer as a float (e.g., 1.006)
+        """
+        gql_query = """
+        query FetchMarketBuffer($country: String!, $isOption: Boolean) {
+          marketBuffer(country: $country, isOption: $isOption) {
+            marketBuffer
+            __typename
+          }
+        }
+        """
+        
+        variables = {
+            "country": country,
+            "isOption": is_option
+        }
+        
+        result = self.graphql_query("FetchMarketBuffer", gql_query, variables)
+        buffer_str = result.get('data', {}).get('marketBuffer', {}).get('marketBuffer')
+        return float(buffer_str) if buffer_str else 1.05 # Default to safe 5% if missing
     
     def get_security(self, security_id: str, currency: Optional[str] = None) -> Dict:
         """
@@ -764,6 +821,133 @@ class WealthsimpleV2:
         
         result = self.graphql_query("FetchSecurityQuoteV2", gql_query, variables)
         return result.get('data', {}).get('security', {}).get('quoteV2', {})
+
+    def get_security_status(self, security_id: str) -> Dict:
+        """
+        Get the trading status of a security.
+        
+        Args:
+            security_id: The security ID
+            
+        Returns:
+            Dictionary containing security status
+        """
+        gql_query = """
+        query FetchSecurityStatus($id: ID!) {
+          security(id: $id) {
+            id
+            status
+            optionDetails {
+              underlyingSecurity {
+                id
+                status
+              }
+            }
+            __typename
+          }
+        }
+        """
+        
+        variables = {"id": security_id}
+        result = self.graphql_query("FetchSecurityStatus", gql_query, variables)
+        return result.get('data', {}).get('security', {})
+
+    def get_intraday_chart_quotes(
+        self,
+        security_id: str,
+        period: str = 'ONE_DAY',
+        trading_session: Optional[str] = 'REGULAR',
+        currency: Optional[str] = None,
+        date: Optional[str] = None,
+    ) -> List[Dict]:
+        """
+        Get Wealthsimple-native chart bar quotes for a security.
+
+        Args:
+            security_id: Security ID
+            period: Chart period (e.g. ONE_DAY, ONE_WEEK, ONE_MONTH)
+            trading_session: Trading session (e.g. REGULAR, OVERNIGHT)
+            currency: Optional quote currency
+            date: Optional date in YYYY-MM-DD format for date-scoped requests
+
+        Returns:
+            List of chart bar quote dictionaries
+        """
+        if trading_session is not None:
+            gql_query = """
+            query FetchIntraDayChartQuotes(
+              $id: ID!,
+              $date: Date,
+              $tradingSession: TradingSession,
+              $currency: Currency,
+              $period: ChartPeriod
+            ) {
+              security(id: $id) {
+                id
+                chartBarQuotes(
+                  date: $date
+                  tradingSession: $tradingSession
+                  currency: $currency
+                  period: $period
+                ) {
+                  securityId
+                  price
+                  sessionPrice
+                  timestamp
+                  currency
+                  marketStatus
+                  __typename
+                }
+                __typename
+              }
+            }
+            """
+            variables = {
+                "id": security_id,
+                "date": date,
+                "tradingSession": trading_session,
+                "currency": currency,
+                "period": period,
+            }
+        else:
+            gql_query = """
+            query FetchIntraDayChartQuotes(
+              $id: ID!,
+              $date: Date,
+              $currency: Currency,
+              $period: ChartPeriod
+            ) {
+              security(id: $id) {
+                id
+                chartBarQuotes(
+                  date: $date
+                  currency: $currency
+                  period: $period
+                ) {
+                  securityId
+                  price
+                  sessionPrice
+                  timestamp
+                  currency
+                  marketStatus
+                  __typename
+                }
+                __typename
+              }
+            }
+            """
+            variables = {
+                "id": security_id,
+                "date": date,
+                "currency": currency,
+                "period": period,
+            }
+        
+        # Remove None values so GraphQL doesn't receive explicit nulls for optional Enums
+        variables = {k: v for k, v in variables.items() if v is not None}
+
+        result = self.graphql_query("FetchIntraDayChartQuotes", gql_query, variables)
+        return result.get('data', {}).get('security', {}).get('chartBarQuotes', [])
     
     def get_ticker_id(self, ticker: str, exchange: Optional[str] = None) -> Optional[str]:
         """
@@ -784,6 +968,101 @@ class WealthsimpleV2:
                 if exchange is None or stock.get('primaryExchange') == exchange:
                     return result.get('id')
         
+        return None
+
+    def parse_ticker_market(self, ticker_market: str) -> tuple:
+        """
+        Parse a ticker with market suffix into (symbol, market).
+
+        Args:
+            ticker_market: Ticker with market suffix (e.g., 'TSLA.US', 'MFC.TO')
+
+        Returns:
+            Tuple of (symbol, market) - market is 'US', 'TO', etc.
+        """
+        if '.' in ticker_market:
+            parts = ticker_market.rsplit('.', 1)
+            return parts[0].upper(), parts[1].upper()
+        return ticker_market.upper(), None
+
+    def _is_us_exchange(self, exchange: str) -> bool:
+        """Check if exchange is a US exchange."""
+        if not exchange:
+            return False
+        exchange_upper = exchange.upper()
+        us_exchanges = {'NYSE', 'NASDAQ', 'AMEX', 'BATS', 'XNYS', 'XNAS', 'XASE'}
+        return exchange_upper in us_exchanges
+
+    def _is_canadian_exchange(self, exchange: str) -> bool:
+        """Check if exchange is a Canadian exchange."""
+        if not exchange:
+            return False
+        exchange_upper = exchange.upper()
+        ca_exchanges = {'TSX', 'TSXV', 'CSE', 'NEOE', 'XTSE', 'XTSX', 'XCSE'}
+        return exchange_upper in ca_exchanges
+
+    def resolve_security_id(self, ticker_market: str) -> Optional[str]:
+        """
+        Resolve a ticker with market suffix to its Wealthsimple security ID.
+
+        This method handles the mapping from EODHD-style ticker format (TICKER.MARKET)
+        to Wealthsimple security IDs by searching and filtering results.
+
+        Args:
+            ticker_market: Ticker with market suffix (e.g., 'TSLA.US', 'MFC.TO')
+
+        Returns:
+            Security ID string or None if not found
+        """
+        # Check cache first
+        if hasattr(self, '_security_id_cache') and ticker_market in self._security_id_cache:
+            return self._security_id_cache[ticker_market]
+
+        symbol, market = self.parse_ticker_market(ticker_market)
+
+        results = self.search_securities(symbol)
+        if not results:
+            return None
+
+        # Filter based on market
+        if market == 'US':
+            # For US market, find first US-listed security with matching symbol
+            for result in results:
+                stock = result.get('stock') or {}
+                if stock.get('symbol') == symbol:
+                    exchange = stock.get('primaryExchange', '') or ''
+                    if self._is_us_exchange(exchange):
+                        security_id = result.get('id')
+                        # Cache the result
+                        if not hasattr(self, '_security_id_cache'):
+                            self._security_id_cache = {}
+                        self._security_id_cache[ticker_market] = security_id
+                        return security_id
+        elif market == 'TO':
+            # For Toronto (TSX), find Canadian-listed security
+            for result in results:
+                stock = result.get('stock') or {}
+                if stock.get('symbol') == symbol:
+                    exchange = stock.get('primaryExchange', '') or ''
+                    if self._is_canadian_exchange(exchange):
+                        security_id = result.get('id')
+                        # Cache the result
+                        if not hasattr(self, '_security_id_cache'):
+                            self._security_id_cache = {}
+                        self._security_id_cache[ticker_market] = security_id
+                        return security_id
+        else:
+            # No market specified or unknown market - fall back to first match
+            for result in results:
+                stock = result.get('stock') or {}
+                if stock.get('symbol') == symbol:
+                    security_id = result.get('id')
+                    # Cache the result
+                    if not hasattr(self, '_security_id_cache'):
+                        self._security_id_cache = {}
+                    self._security_id_cache[ticker_market] = security_id
+                    return security_id
+
         return None
     
     # ==================== Options Trading ====================
@@ -1264,6 +1543,173 @@ class WealthsimpleV2:
         
         result = self.graphql_query("FetchAccountFinancials", gql_query, variables)
         return result.get('data', {}).get('accounts', [])
+    
+    def get_account_current_financials(self, account_id: str, currency: str = 'CAD', 
+                                      start_date: Optional[str] = None) -> Dict:
+        """
+        Get current financial metrics for a specific account.
+        
+        Args:
+            account_id: The account ID
+            currency: Currency for the metrics
+            start_date: Reference date for simple returns calculation (YYYY-MM-DD)
+            
+        Returns:
+            Account financials dictionary
+        """
+        gql_query = """
+        query FetchAccountCurrentFinancials($id: ID!, $currency: Currency, $startDate: Date) {
+          account(id: $id) {
+            id
+            financials {
+              current(currency: $currency) {
+                id
+                netLiquidationValueV2 {
+                  amount
+                  cents
+                  currency
+                }
+                netDeposits: netDepositsV2 {
+                  amount
+                  cents
+                  currency
+                }
+                simpleReturns(referenceDate: $startDate) {
+                  amount {
+                    amount
+                    cents
+                    currency
+                  }
+                  asOf
+                  rate
+                  referenceDate
+                }
+                totalDeposits: totalDepositsV2 {
+                  amount
+                  cents
+                  currency
+                }
+                totalWithdrawals: totalWithdrawalsV2 {
+                  amount
+                  cents
+                  currency
+                }
+                __typename
+              }
+              __typename
+            }
+            __typename
+          }
+        }
+        """
+        
+        variables = {
+            "id": account_id,
+            "currency": currency,
+            "startDate": start_date
+        }
+        
+        # Remove None values
+        variables = {k: v for k, v in variables.items() if v is not None}
+        
+        result = self.graphql_query("FetchAccountCurrentFinancials", gql_query, variables)
+        return result.get('data', {}).get('account', {}).get('financials', {}).get('current', {})
+    
+    def get_account_graph_data(
+        self,
+        account_id: str,
+        currency: str = 'CAD',
+        time_range: str = 'ONE_DAY',
+        market_session: str = 'REGULAR',
+        include_simple_returns: bool = False,
+    ) -> Dict:
+        """
+        Get account graph data for an account.
+
+        Args:
+            account_id: Account ID
+            currency: Currency for graph values
+            time_range: Graph time range (e.g. ONE_DAY, ONE_WEEK, ONE_MONTH)
+            market_session: Graph market session (e.g. REGULAR, OVERNIGHT)
+            include_simple_returns: Include simple return payloads in graph points
+
+        Returns:
+            Account graph data dictionary with previousClose and data points
+        """
+        gql_query = """
+        query FetchAccountGraphData(
+          $id: ID!,
+          $currency: Currency!,
+          $timeRange: GraphTimeRange!,
+          $marketSession: GraphMarketSession!,
+          $includeSimpleReturns: Boolean = false
+        ) {
+          account(id: $id) {
+            id
+            financials {
+              currentCombined(currency: $currency) {
+                id
+                graphData(timeRange: $timeRange, marketSession: $marketSession) {
+                  previousClose {
+                    dateTime
+                    netLiquidationValue {
+                      amount
+                      currency
+                      __typename
+                    }
+                    __typename
+                  }
+                  data {
+                    dateTime
+                    netLiquidationValue {
+                      amount
+                      currency
+                      __typename
+                    }
+                    netDeposits {
+                      amount
+                      currency
+                      __typename
+                    }
+                    simpleReturns @include(if: $includeSimpleReturns) {
+                      amount {
+                        amount
+                        currency
+                        __typename
+                      }
+                      rate
+                      referenceDateTime
+                      __typename
+                    }
+                    __typename
+                  }
+                  __typename
+                }
+                __typename
+              }
+              __typename
+            }
+            __typename
+          }
+        }
+        """
+
+        variables = {
+            "id": account_id,
+            "currency": currency,
+            "timeRange": time_range,
+            "marketSession": market_session,
+            "includeSimpleReturns": include_simple_returns,
+        }
+
+        result = self.graphql_query("FetchAccountGraphData", gql_query, variables)
+        current = (
+            result.get('data', {})
+            .get('account', {})
+            .get('financials', {})
+            .get('currentCombined', {})
+        )
+        return current.get('graphData', {})
     
     def get_identity_historical_financials(self, identity_id: Optional[str] = None, currency: str = 'CAD',
                                            start_date: Optional[str] = None, end_date: Optional[str] = None,
