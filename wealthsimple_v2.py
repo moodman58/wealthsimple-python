@@ -1140,6 +1140,56 @@ class WealthsimpleV2:
         
         result = self.graphql_query("FetchAccountFundingBalances", gql_query, variables)
         return result.get('data', {}).get('account_funding_balances', [])
+
+    def create_internal_transfer(self, source_account_id: str, destination_account_id: str,
+                                 amount: float, currency: str = 'CAD') -> Dict:
+        """
+        Transfer money between Wealthsimple accounts.
+
+        Args:
+            source_account_id: Account ID to transfer funds from
+            destination_account_id: Account ID to transfer funds to
+            amount: Dollar amount to transfer
+            currency: Currency to transfer (default: 'CAD')
+
+        Returns:
+            Funding intent response with transfer ID and status
+        """
+        gql_query = """
+        mutation FundingIntentInternalTransferCreate($input: CreateFundingIntentInternalTransferInput!) {
+          createFundingIntentInternalTransfer: create_funding_intent_internal_transfer(
+            input: $input
+          ) {
+            ... on FundingIntent {
+              id
+              __typename
+            }
+            __typename
+          }
+        }
+        """
+
+        variables = {
+            "input": {
+                "source": {
+                    "id": source_account_id,
+                    "type": "Account"
+                },
+                "source_currency": currency.upper(),
+                "destination": {
+                    "id": destination_account_id,
+                    "type": "Account"
+                },
+                "destination_currency": currency.upper(),
+                "requested_amount_value": str(amount),
+                "requested_amount_unit": "QUANTITY",
+                "product_attribution": "simple_mm_web",
+                "idempotency_key": str(uuid.uuid4())
+            }
+        }
+
+        result = self.graphql_query("FundingIntentInternalTransferCreate", gql_query, variables)
+        return result.get('data', {}).get('createFundingIntentInternalTransfer', {})
     
     def get_account_financials(self, account_ids: List[str], currency: str = 'CAD', 
                               start_date: Optional[str] = None) -> List[Dict]:
