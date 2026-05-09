@@ -345,6 +345,20 @@ for account in accounts:
     print("---")
 ```
 
+#### Transfer Funds Between Accounts
+
+```python
+# Move idle cash from one Wealthsimple account to another
+transfer = ws.create_internal_transfer(
+    source_account_id='non-registered-xxxxx',
+    destination_account_id='ca-cash-xxxxx',
+    amount=25.75,
+    currency='CAD'
+)
+
+print(f"Transfer created: {transfer['id']}")
+```
+
 #### Get Account Financials
 
 ```python
@@ -1264,6 +1278,7 @@ ws = WealthsimpleV2(
 | Method                                                                                                                                                      | Description                               |
 | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------- |
 | `get_accounts(identity_id=None)`                                                                                                                            | Get all accounts                          |
+| `create_internal_transfer(source_account_id, destination_account_id, amount, currency='CAD')`                                                                | Transfer funds between accounts           |
 | `get_account_financials(account_ids, currency='CAD')`                                                                                                       | Get account balances                      |
 | `get_positions(identity_id=None, account_ids=None, security_types=None)`                                                                                    | Get current positions                     |
 | `get_activities(account_ids=None, types=None, limit=50)`                                                                                                    | Get activity feed                         |
