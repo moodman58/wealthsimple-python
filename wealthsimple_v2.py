@@ -596,33 +596,98 @@ class WealthsimpleV2:
         result = self.graphql_query("FetchSecuritySearchResult", gql_query, variables)
         return result.get('data', {}).get('securitySearch', {}).get('results', [])
 
-    def get_markets_metadata(self) -> List[Dict]:
+    def get_nearest_market_open(self) -> Dict:
         """
-        Get metadata for all supported markets (NASDAQ, NYSE, TSX, etc.).
+        Get the nearest market open payload used by the current web app.
         
         Returns:
-            List of market metadata dictionaries
+            Dictionary containing exchange info and previous/current/next trade days
         """
         gql_query = """
-        query FetchMarketsMetadata {
-          marketsMetadata {
-            cacheDate
-            close
-            date
+        query FetchNearestMarketOpen {
+          nearestMarketOpen {
+            currentTradeDay {
+              date
+              overnight {
+                start
+                end
+                __typename
+              }
+              preMarket {
+                start
+                end
+                __typename
+              }
+              regular {
+                start
+                end
+                __typename
+              }
+              postMarket {
+                start
+                end
+                __typename
+              }
+              __typename
+            }
             exchangeName
-            lastOpenDate
-            lastOpenTime
+            isTodayEarlyClose
             mic
-            nextOpenDate
-            nextOpenTime
-            open
+            nextTradeDay {
+              date
+              overnight {
+                start
+                end
+                __typename
+              }
+              preMarket {
+                start
+                end
+                __typename
+              }
+              regular {
+                start
+                end
+                __typename
+              }
+              postMarket {
+                start
+                end
+                __typename
+              }
+              __typename
+            }
+            previousTradeDay {
+              date
+              overnight {
+                start
+                end
+                __typename
+              }
+              preMarket {
+                start
+                end
+                __typename
+              }
+              regular {
+                start
+                end
+                __typename
+              }
+              postMarket {
+                start
+                end
+                __typename
+              }
+              __typename
+            }
             __typename
           }
         }
         """
         
-        result = self.graphql_query("FetchMarketsMetadata", gql_query, {})
-        return result.get('data', {}).get('marketsMetadata', [])
+        result = self.graphql_query("FetchNearestMarketOpen", gql_query, {})
+        return result.get('data', {}).get('nearestMarketOpen', {})
 
     def get_market_buffer(self, country: str = 'CA', is_option: bool = False) -> float:
         """
@@ -3124,4 +3189,3 @@ if __name__ == "__main__":
         print("  export WS_USERNAME='your@email.com'")
         print("  export WS_PASSWORD='yourpassword'")
         print("  export WS_OTP='123456'  # Optional, only if 2FA enabled")
-
