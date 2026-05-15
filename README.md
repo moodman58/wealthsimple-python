@@ -59,6 +59,8 @@
 - Security search by ticker symbol or company name
 - Real-time quotes with bid/ask spreads
 - Detailed security information (fundamentals, market status)
+- Nearest market open and market buffer lookups
+- Intraday chart quotes from Wealthsimple's native chart API
 - Support for stocks across multiple exchanges (NASDAQ, NYSE, TSX, etc.)
 - **WebSocket subscriptions for real-time streaming data**
   - Real-time security quote updates
@@ -70,6 +72,7 @@
 
 - Retrieve all accounts (Personal, TFSA, RRSP, etc.)
 - Account balances and buying power
+- Current account financials and broker-native graph data
 - Current positions with unrealized P/L
 - Activity feed and order history
 - **Daily historical portfolio financials** with automatic pagination
@@ -329,6 +332,57 @@ print(f"Market Cap: ${fundamentals.get('marketCap')}")
 print(f"Dividend Yield: {fundamentals.get('dividendYield')}%")
 ```
 
+#### Get Nearest Market Open
+
+```python
+# Get previous/current/next market session boundaries
+market_open = ws.get_nearest_market_open()
+
+print(f"Exchange: {market_open['exchangeName']} ({market_open['mic']})")
+print(f"Current trade day: {market_open['currentTradeDay']['date']}")
+```
+
+#### Get Market Buffer
+
+```python
+# Get the current market buffer for a country / asset class
+buffer = ws.get_market_buffer(country='CA', is_option=False)
+print(f"Market buffer: {buffer}")
+```
+
+#### Get Security Status
+
+```python
+# Check trading status for a security
+status = ws.get_security_status(security_id)
+print(f"Security status: {status['status']}")
+```
+
+#### Get Intraday Chart Quotes
+
+```python
+# Get Wealthsimple-native chart points
+bars = ws.get_intraday_chart_quotes(
+    security_id=security_id,
+    period='ONE_DAY',
+    trading_session='REGULAR'
+)
+
+for bar in bars:
+    print(f"{bar['timestamp']}: {bar['price']}")
+```
+
+#### Resolve Ticker Market Symbols
+
+```python
+# Convert ticker.market symbols into Wealthsimple security IDs
+symbol, market = ws.parse_ticker_market('TSLA.US')
+print(symbol, market)
+
+security_id = ws.resolve_security_id('MFC.TO')
+print(f"Security ID: {security_id}")
+```
+
 ### Account Management
 
 #### Get All Accounts
@@ -403,6 +457,32 @@ for position in positions:
 # Get positions for specific accounts
 account_ids = [accounts[0]['id']]  # Only first account
 positions = ws.get_positions(account_ids=account_ids)
+```
+
+#### Get Current Financials
+
+```python
+# Get current metrics for a single account
+current = ws.get_account_current_financials(account_id)
+
+print(f"Net liquidation value: {current['netLiquidationValueV2']['amount']}")
+print(f"Net deposits: {current['netDeposits']['amount']}")
+print(f"Total withdrawals: {current['totalWithdrawals']['amount']}")
+```
+
+#### Get Account Graph Data
+
+```python
+# Get broker-native graph data for charting
+graph = ws.get_account_graph_data(
+    account_id=account_id,
+    currency='CAD',
+    time_range='ONE_DAY',
+    market_session='REGULAR'
+)
+
+for point in graph.get('data', []):
+    print(f"{point['dateTime']}: {point['netLiquidationValue']['amount']}")
 ```
 
 ### Stock Trading
@@ -1271,7 +1351,15 @@ ws = WealthsimpleV2(
 | `search_securities(query, security_group_ids=None)` | Search for securities by ticker or name |
 | `get_security(security_id, currency=None)`          | Get detailed security information       |
 | `get_security_quote(security_id, currency=None)`    | Get real-time quote                     |
+| `get_nearest_market_open()`                         | Get nearest market open details         |
+| `get_market_buffer(country='CA', is_option=False)`  | Get the market buffer multiplier        |
+| `get_security_status(security_id)`                  | Get security trading status             |
+| `get_intraday_chart_quotes(...)`                    | Get broker-native intraday chart quotes |
 | `get_ticker_id(ticker, exchange=None)`              | Get security ID from ticker symbol      |
+| `parse_ticker_market(ticker_market)`                | Split `TICKER.MARKET` into parts        |
+| `_is_us_exchange(exchange)`                         | Check whether an exchange is US-listed  |
+| `_is_canadian_exchange(exchange)`                   | Check whether an exchange is CA-listed  |
+| `resolve_security_id(ticker_market)`                | Resolve `TICKER.MARKET` to a security ID |
 
 #### Account Methods
 
@@ -1280,6 +1368,8 @@ ws = WealthsimpleV2(
 | `get_accounts(identity_id=None)`                                                                                                                            | Get all accounts                          |
 | `create_internal_transfer(source_account_id, destination_account_id, amount, currency='CAD')`                                                                | Transfer funds between accounts           |
 | `get_account_financials(account_ids, currency='CAD')`                                                                                                       | Get account balances                      |
+| `get_account_current_financials(account_id, currency='CAD', start_date=None)`                                                                              | Get current account financials            |
+| `get_account_graph_data(account_id, currency='CAD', time_range='ONE_DAY', market_session='REGULAR', include_simple_returns=False)`                        | Get account graph data                    |
 | `get_positions(identity_id=None, account_ids=None, security_types=None)`                                                                                    | Get current positions                     |
 | `get_activities(account_ids=None, types=None, limit=50)`                                                                                                    | Get activity feed                         |
 | `get_identity(identity_id=None)`                                                                                                                            | Get user identity information             |
