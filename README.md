@@ -59,7 +59,7 @@
 - Security search by ticker symbol or company name
 - Real-time quotes with bid/ask spreads
 - Detailed security information (fundamentals, market status)
-- Market metadata and market buffer lookups
+- Nearest market open and market buffer lookups
 - Intraday chart quotes from Wealthsimple's native chart API
 - Support for stocks across multiple exchanges (NASDAQ, NYSE, TSX, etc.)
 - **WebSocket subscriptions for real-time streaming data**
@@ -332,14 +332,14 @@ print(f"Market Cap: ${fundamentals.get('marketCap')}")
 print(f"Dividend Yield: {fundamentals.get('dividendYield')}%")
 ```
 
-#### Get Market Metadata
+#### Get Nearest Market Open
 
 ```python
-# Get supported market metadata
-markets = ws.get_markets_metadata()
+# Get previous/current/next market session boundaries
+market_open = ws.get_nearest_market_open()
 
-for market in markets:
-    print(f"{market['exchangeName']} ({market['mic']}): open={market['open']}, close={market['close']}")
+print(f"Exchange: {market_open['exchangeName']} ({market_open['mic']})")
+print(f"Current trade day: {market_open['currentTradeDay']['date']}")
 ```
 
 #### Get Market Buffer
@@ -1337,7 +1337,7 @@ ws = WealthsimpleV2(
 | `search_securities(query, security_group_ids=None)` | Search for securities by ticker or name |
 | `get_security(security_id, currency=None)`          | Get detailed security information       |
 | `get_security_quote(security_id, currency=None)`    | Get real-time quote                     |
-| `get_markets_metadata()`                            | Get supported market metadata           |
+| `get_nearest_market_open()`                         | Get nearest market open details         |
 | `get_market_buffer(country='CA', is_option=False)`  | Get the market buffer multiplier        |
 | `get_security_status(security_id)`                  | Get security trading status             |
 | `get_intraday_chart_quotes(...)`                    | Get broker-native intraday chart quotes |
