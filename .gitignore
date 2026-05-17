@@ -5,4 +5,7 @@ notes.md
 __pycache__
 trading
 bot
-logs/
+logs/   
+*.egg-info/
+dist/
+build/

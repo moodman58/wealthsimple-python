@@ -14,7 +14,7 @@ import sys
 import getpass
 from datetime import datetime
 from typing import Optional, List, Dict
-from wealthsimple_v2 import WealthsimpleV2
+from wealthsimple_python import WealthsimpleV2
 
 
 def search_securities(ws: WealthsimpleV2):
