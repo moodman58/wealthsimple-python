@@ -2,7 +2,7 @@ from .client import WealthsimpleV2
 from .subscriptions import WealthsimpleSubscriptions
 from .constants import OrderStatus, OrderType, OrderSubType, ExecutionType, TimeInForce
 from .helpers import quote
-from .totp import get_totp_token, get_hotp_token
+from .authy import get_totp_token, get_hotp_token
 
 __all__ = [
     "WealthsimpleV2",
