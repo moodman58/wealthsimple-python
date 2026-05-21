@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "wealthsimple-python"
+version = "2.0.0"
+description = "Unofficial Python client for the Wealthsimple GraphQL API"
+requires-python = ">=3.9"
+dependencies = [
+    "requests",
+]
+
+[project.optional-dependencies]
+keyring = ["keyring"]
+websockets = ["websockets"]
+all = ["keyring", "websockets"]
+
+[tool.setuptools.packages.find]
+include = ["wealthsimple_python*"]
+
+[tool.setuptools.package-data]
+wealthsimple_python = ["py.typed"]

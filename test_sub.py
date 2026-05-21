@@ -7,7 +7,7 @@ import contextlib
 import requests
 import getpass
 from typing import Dict, Any, Optional, List
-from wealthsimple_v2 import WealthsimpleV2
+from wealthsimple_python import WealthsimpleV2
 
 
 def getenv_str(name: str, default: Optional[str] = None) -> Optional[str]:
