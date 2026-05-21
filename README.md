@@ -4,9 +4,9 @@
 
 **Unofficial Python client for the Wealthsimple Trade platform**
 
-[![Python 3.7+](https://img.shields.io/badge/python-3.7+-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 
-[Features](#features) • [Installation](#installation) • [Quick Start](#quick-start) • [Documentation](#documentation) • [Examples](#examples)
+[Features](#-features) • [Installation](#-installation) • [Quick Start](#-quick-start) • [Documentation](#-documentation) • [Examples](#-examples)
 
 </div>
 
@@ -25,11 +25,11 @@
 
 ## 📋 Table of Contents
 
-- [Features](#features)
-- [Installation](#installation)
-- [Quick Start](#quick-start)
-- [Authentication](#authentication)
-- [Documentation](#documentation)
+- [Features](#-features)
+- [Installation](#-installation)
+- [Quick Start](#-quick-start)
+- [Authentication](#-authentication-1)
+- [Documentation](#-documentation)
   - [Security Search & Quotes](#security-search--quotes)
   - [Account Management](#account-management)
   - [Stock Trading](#stock-trading)
@@ -112,34 +112,55 @@
 
 ### Requirements
 
-- Python 3.7 or higher
-- `requests` library
-- `keyring` library (optional but recommended, for secure token storage)
-- `websockets` library (optional, required for subscription features)
+- Python 3.9 or higher
 
-### Install Dependencies
+### Install directly from GitHub
 
 ```bash
-# Core dependencies
-pip install requests
-
-# For secure token storage (highly recommended)
-pip install keyring
-
-# For WebSocket subscriptions (optional but recommended)
-pip install websockets
+pip install git+https://github.com/henryhuangh/wealthsimple-python.git
 ```
 
-### Download the Library
-
-Clone or download the repository:
+With optional dependencies:
 
 ```bash
-git clone https://github.com/yourusername/wealthsimple-python.git
+# Secure token storage (highly recommended)
+pip install "wealthsimple-python[keyring] @ git+https://github.com/henryhuangh/wealthsimple-python.git"
+
+# WebSocket subscriptions
+pip install "wealthsimple-python[websockets] @ git+https://github.com/henryhuangh/wealthsimple-python.git"
+
+# Everything
+pip install "wealthsimple-python[all] @ git+https://github.com/henryhuangh/wealthsimple-python.git"
+```
+
+### Or clone and install locally
+
+```bash
+git clone https://github.com/henryhuangh/wealthsimple-python.git
 cd wealthsimple-python
+pip install .
 ```
 
-Ensure `wealthsimple_v2.py` is in your project directory or Python path.
+With optional dependencies:
+
+```bash
+# Secure token storage (highly recommended)
+pip install ".[keyring]"
+
+# WebSocket subscriptions
+pip install ".[websockets]"
+
+# Everything
+pip install ".[all]"
+```
+
+The core package only requires `requests`. Optional extras:
+
+| Extra | Package | Purpose |
+|-------|---------|---------|
+| `keyring` | `keyring` | OS-level secure token storage (macOS Keychain, Windows Credential Locker, Linux Secret Service) |
+| `websockets` | `websockets` | Real-time streaming via WebSocket subscriptions |
+| `all` | both | Install everything |
 
 ---
 
@@ -148,7 +169,7 @@ Ensure `wealthsimple_v2.py` is in your project directory or Python path.
 ### Basic Usage
 
 ```python
-from wealthsimple_v2 import WealthsimpleV2
+from wealthsimple_python import WealthsimpleV2
 
 # Initialize and authenticate
 ws = WealthsimpleV2(
@@ -186,7 +207,7 @@ print(f"Order placed: {order['orderId']}")
 ### Basic Authentication
 
 ```python
-from wealthsimple_v2 import WealthsimpleV2
+from wealthsimple_python import WealthsimpleV2
 
 ws = WealthsimpleV2(username='your@email.com', password='yourpassword')
 ```
@@ -773,7 +794,7 @@ pip install websockets
 
 ```python
 import asyncio
-from wealthsimple_v2 import WealthsimpleV2
+from wealthsimple_python import WealthsimpleV2
 
 ws = WealthsimpleV2()
 
@@ -1034,7 +1055,7 @@ The script will guide you through:
 ### Example 1: Portfolio Summary
 
 ```python
-from wealthsimple_v2 import WealthsimpleV2
+from wealthsimple_python import WealthsimpleV2
 
 ws = WealthsimpleV2()
 
@@ -1062,7 +1083,7 @@ print(f"Total Portfolio Value: ${total_value:,.2f}")
 ### Example 2: Buy Stock with Quote Check
 
 ```python
-from wealthsimple_v2 import WealthsimpleV2
+from wealthsimple_python import WealthsimpleV2
 
 ws = WealthsimpleV2()
 
@@ -1095,7 +1116,7 @@ print(f"Status: {order['status']}")
 ### Example 3: Sell Covered Call
 
 ```python
-from wealthsimple_v2 import WealthsimpleV2
+from wealthsimple_python import WealthsimpleV2
 
 ws = WealthsimpleV2()
 
@@ -1139,7 +1160,7 @@ if otm_calls:
 ### Example 4: Monitor Multiple Positions
 
 ```python
-from wealthsimple_v2 import WealthsimpleV2
+from wealthsimple_python import WealthsimpleV2
 import time
 
 ws = WealthsimpleV2()
@@ -1168,7 +1189,7 @@ while True:
 ### Example 5: Real-Time Price Monitor
 
 ```python
-from wealthsimple_v2 import WealthsimpleV2
+from wealthsimple_python import WealthsimpleV2
 import asyncio
 
 ws = WealthsimpleV2()
@@ -1198,7 +1219,7 @@ asyncio.run(monitor_price())
 ### Example 6: Real-Time Order Monitor
 
 ```python
-from wealthsimple_v2 import WealthsimpleV2
+from wealthsimple_python import WealthsimpleV2
 import asyncio
 
 ws = WealthsimpleV2()
@@ -1227,7 +1248,7 @@ asyncio.run(watch_orders())
 
 ```python
 from datetime import date, timedelta
-from wealthsimple_v2 import WealthsimpleV2
+from wealthsimple_python import WealthsimpleV2
 
 ws = WealthsimpleV2()
 
@@ -1281,7 +1302,7 @@ result = ws.graphql_query("CustomQuery", query, variables)
 ### Error Handling
 
 ```python
-from wealthsimple_v2 import WealthsimpleV2
+from wealthsimple_python import WealthsimpleV2
 
 try:
     ws = WealthsimpleV2(username='user@email.com', password='wrong_password')
