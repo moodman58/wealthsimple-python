@@ -114,6 +114,12 @@
 
 - Python 3.9 or higher
 
+### Install from PyPi using pip
+
+```bash
+pip install wealthsimple-python
+```
+
 ### Install directly from GitHub
 
 ```bash
